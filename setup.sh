@@ -8,6 +8,13 @@ DIR="/opt/unbranded-lab"
 
 echo "== unbranded rehearsal lab setup =="
 
+# 0. prerequisites (plain Ubuntu droplets lack docker and sometimes git)
+if ! command -v docker >/dev/null 2>&1; then
+  echo "-- installing Docker (one-time, ~2 minutes)"
+  curl -fsSL https://get.docker.com | sh >/dev/null
+fi
+command -v git >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq git)
+
 # 1. swap (2GB droplet + node build needs headroom)
 if ! swapon --show | grep -q .; then
   echo "-- adding 2G swap"
