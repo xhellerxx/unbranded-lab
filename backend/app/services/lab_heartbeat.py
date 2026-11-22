@@ -31,7 +31,8 @@ def _beat_once():
     req = urllib.request.Request(
         HEARTBEAT_URL,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        # A named agent: Cloudflare can refuse the default Python-urllib signature.
+        headers={"Content-Type": "application/json", "User-Agent": "unbranded-lab/1.0 (+https://unbranded.inc)"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=10) as resp:
@@ -43,7 +44,7 @@ def _loop():
         try:
             _beat_once()
         except Exception as e:  # noqa: BLE001 - heartbeat must never crash the lab
-            logger.debug(f"Heartbeat skipped: {e}")
+            logger.warning(f"Heartbeat failed: {e}")
         time.sleep(INTERVAL_SECONDS)
 
 
