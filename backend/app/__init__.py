@@ -76,5 +76,12 @@ def create_app(config_class=Config):
     if should_log_startup:
         logger.info("MiroFish Backend 启动完成")
     
+    # unbranded fork: report to the app so the Rehearsal page knows the lab is up
+    try:
+        from .services.lab_heartbeat import start_heartbeat
+        start_heartbeat()
+    except Exception:
+        pass
+
     return app
 
