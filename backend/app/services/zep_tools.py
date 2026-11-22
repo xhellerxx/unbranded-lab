@@ -325,7 +325,7 @@ class AgentInterview:
                 # 过滤包含问题编号的垃圾内容（问题1-9）
                 skip = False
                 for d in '123456789':
-                    if f'\u95ee\u9898{d}' in clean_quote:
+                    if f'\u95ee\u9898{d}' in clean_quote or f'Question {d}' in clean_quote or f'question {d}' in clean_quote:
                         skip = True
                         break
                 if skip:
