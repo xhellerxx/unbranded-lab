@@ -1,0 +1,6 @@
+:80 {
+	basic_auth {
+		{$LAB_USER} {$LAB_HASH}
+	}
+	reverse_proxy mirofish:3000
+}
