@@ -103,6 +103,11 @@ def generate_report():
         successful_terminal_statuses = {
             RunnerStatus.COMPLETED,
             RunnerStatus.STOPPED,
+            # unbranded fork: a failed run is still reportable when it banked
+            # events before dying (e.g. one platform finished and the other was
+            # OOM-killed). The report agent only reads what actually happened,
+            # so a partial record is a shorter rehearsal, not a corrupt one.
+            RunnerStatus.FAILED,
         }
         if (
             run_state is None
