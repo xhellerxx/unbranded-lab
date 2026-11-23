@@ -3,10 +3,18 @@
 # redirects BEFORE authentication or proxying, so nothing sensitive crosses it.
 
 lab.unbranded.inc {
-	basic_auth {
-		{$LAB_USER} {$LAB_HASH}
+	# Flights from The Stack: no password here; every request must carry The Stack's signature,
+	# which the app checks before doing anything. Only this one path is open.
+	handle /api/unbranded/* {
+		reverse_proxy mirofish:5001
 	}
-	reverse_proxy mirofish:3000
+	# Everything else is the back room, behind the lab password.
+	handle {
+		basic_auth {
+			{$LAB_USER} {$LAB_HASH}
+		}
+		reverse_proxy mirofish:3000
+	}
 }
 
 :80 {

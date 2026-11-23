@@ -20,6 +20,11 @@ cp scripts/labsync.sh /usr/local/bin/labsync.sh 2>/dev/null
 if ! docker compose up -d --build >> "$LOG" 2>&1; then
   echo "[labsync] $(date -u +%FT%TZ) BUILD FAILED for $REMOTE, will retry" >> "$LOG"; exit 0
 fi
+# The Caddyfile is bind-mounted as a single file; git replaces it with a new file, which a running
+# container never sees. Recreate the front door whenever the Caddyfile changed in this revision.
+if [ "$DEPLOYED" = "none" ] || ! git diff --quiet "$DEPLOYED" "$REMOTE" -- Caddyfile 2>/dev/null; then
+  docker compose up -d --force-recreate caddy >> "$LOG" 2>&1
+fi
 # Readiness, checked the way a founder reaches it:
 #  1. both containers running;
 #  2. the report backend answers its health check (not just the frontend);
