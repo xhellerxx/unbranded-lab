@@ -1595,6 +1595,21 @@ def start_simulation():
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
 
+        # unbranded fork: a run that already banked agent actions is never wiped without an explicit confirmation.
+        # The /start page used to auto-restart on every visit, which erased finished flights.
+        prior = SimulationRunner.get_run_state(simulation_id)
+        prior_actions = 0
+        if prior is not None:
+            prior_actions = int(getattr(prior, "twitter_actions_count", 0) or 0) + int(getattr(prior, "reddit_actions_count", 0) or 0)
+        if prior_actions > 0 and data.get('confirm_restart') is not True:
+            return jsonify({
+                "success": False,
+                "needs_confirm": True,
+                "actions_recorded": prior_actions,
+                "run_status": getattr(getattr(prior, "runner_status", None), "value", str(getattr(prior, "runner_status", ""))),
+                "error": f"This flight already recorded {prior_actions} agent actions. Starting it again erases them. Confirm the restart to proceed.",
+            }), 409
+
         force_restarted = False
         
         # 智能处理状态：如果准备工作已完成，允许重新启动

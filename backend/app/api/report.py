@@ -230,6 +230,14 @@ def generate_report():
                     "error": "This run failed before recording any agent actions; there is nothing to report on.",
                 }), 409
 
+            # unbranded fork: the run's standing travels with every report response and into the saved report.
+            _acts = int(getattr(refreshed_run_state, "twitter_actions_count", 0) or 0) + int(getattr(refreshed_run_state, "reddit_actions_count", 0) or 0)
+            run_qualification = {
+                "run_status": getattr(refreshed_run_state.runner_status, "value", str(refreshed_run_state.runner_status)),
+                "partial_run": refreshed_run_state.runner_status == RunnerStatus.FAILED,
+                "actions_recorded": _acts,
+            }
+
             # Cached-report reuse is now part of the same atomic barrier, so a
             # concurrent rerun cannot make the returned report stale between
             # the status check and response.
@@ -248,7 +256,8 @@ def generate_report():
                             "report_id": existing_report.report_id,
                             "status": "completed",
                             "message": t('api.reportAlreadyExists'),
-                            "already_generated": True
+                            "already_generated": True,
+                            "run_qualification": run_qualification
                         }
                     })
 
@@ -291,15 +300,30 @@ def generate_report():
                         progress_callback=progress_callback,
                         report_id=report_id
                     )
+                    report.run_qualification = run_qualification
+                    if run_qualification["partial_run"] and report.markdown_content:
+                        report.markdown_content = (
+                            "> **Partial flight.** This run FAILED before finishing. The report reads only the "
+                            f"{run_qualification['actions_recorded']} agent actions recorded before it stopped. "
+                            "Treat every conclusion as a hypothesis from an incomplete rehearsal.\n\n"
+                            + report.markdown_content
+                        )
                     ReportManager.save_report(report)
 
                     if report.status == ReportStatus.COMPLETED:
+                        # unbranded fork: the debrief travels to The Stack, filed as a hypothesis.
+                        try:
+                            from ..services.lab_debrief import push_debrief
+                            push_debrief(report, run_qualification)
+                        except Exception as _e:  # noqa: BLE001
+                            logger.warning(f"Debrief push skipped: {_e}")
                         task_manager.complete_task(
                             task_id,
                             result={
                                 "report_id": report.report_id,
                                 "simulation_id": simulation_id,
-                                "status": "completed"
+                                "status": "completed",
+                                "run_qualification": run_qualification
                             }
                         )
                     else:

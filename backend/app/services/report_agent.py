@@ -451,9 +451,11 @@ class Report:
     created_at: str = ""
     completed_at: str = ""
     error: Optional[str] = None
+    run_qualification: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "run_qualification": self.run_qualification,
             "report_id": self.report_id,
             "simulation_id": self.simulation_id,
             "graph_id": self.graph_id,
@@ -2539,7 +2541,8 @@ class ReportManager:
             markdown_content=markdown_content,
             created_at=data.get('created_at', ''),
             completed_at=data.get('completed_at', ''),
-            error=data.get('error')
+            error=data.get('error'),
+            run_qualification=data.get('run_qualification')
         )
     
     @classmethod

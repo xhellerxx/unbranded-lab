@@ -380,7 +380,7 @@ const resetAllState = () => {
 }
 
 // 启动模拟
-const doStartSimulation = async () => {
+const doStartSimulation = async (confirmRestart = false) => {
   if (!props.simulationId) {
     addLog(t('log.errorMissingSimId'))
     return
@@ -399,7 +399,8 @@ const doStartSimulation = async () => {
       simulation_id: props.simulationId,
       platform: 'parallel',
       force: true,  // 强制重新开始
-      enable_graph_memory_update: true  // 开启动态图谱更新
+      enable_graph_memory_update: true,  // 开启动态图谱更新
+      confirm_restart: confirmRestart === true  // unbranded fork: never wipe a finished flight silently
     }
     
     if (props.maxRounds) {
@@ -429,6 +430,21 @@ const doStartSimulation = async () => {
       emit('update-status', 'error')
     }
   } catch (err) {
+    const d = err.response?.data
+    if (d && d.needs_confirm) {
+      isStarting.value = false
+      const ok = window.confirm(
+        `This flight already ran (${d.run_status || 'finished'}, ${d.actions_recorded} agent actions recorded).\n\n` +
+        `Restarting erases those actions and its results. Restart it anyway?\n\n` +
+        `Press Cancel to keep the existing flight and just view it.`
+      )
+      if (ok) { return doStartSimulation(true) }
+      addLog('Kept the existing flight. Showing its recorded results; nothing was restarted.')
+      phase.value = 1
+      startStatusPolling()
+      startDetailPolling()
+      return
+    }
     startError.value = err.message
     addLog(t('log.startException', { error: err.message }))
     emit('update-status', 'error')
