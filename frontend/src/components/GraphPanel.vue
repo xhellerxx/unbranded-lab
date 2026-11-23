@@ -325,8 +325,20 @@ let currentSimulation = null
 let linkLabelsRef = null
 let linkLabelBgRef = null
 
-const renderGraph = () => {
+// unbranded fork (performance): remember where nodes settled, and what we last drew,
+// so a 30-second refresh during a flight never throws the layout away and starts over.
+let drawRef = null
+let lastPositions = new Map()
+let lastSignature = ''
+const renderGraph = (force = false) => {
   if (!graphSvg.value || !props.graphData) return
+  const _sig = (props.graphData.nodes || []).length + ':' + (props.graphData.edges || []).length + ':' +
+    ((props.graphData.nodes || []).map(n => n.uuid).sort().join(',').length)
+  if (force !== true && _sig === lastSignature && currentSimulation) return
+  lastSignature = _sig
+  if (currentSimulation) {
+    currentSimulation.nodes().forEach(n => { if (n.x != null) lastPositions.set(n.id, { x: n.x, y: n.y }) })
+  }
   
   // 停止之前的仿真
   if (currentSimulation) {
@@ -353,12 +365,19 @@ const renderGraph = () => {
   const nodeMap = {}
   nodesData.forEach(n => nodeMap[n.uuid] = n)
   
-  const nodes = nodesData.map(n => ({
-    id: n.uuid,
-    name: n.name || 'Unnamed',
-    type: n.labels?.find(l => l !== 'Entity') || 'Entity',
-    rawData: n
-  }))
+  const nodes = nodesData.map(n => {
+    const p = lastPositions.get(n.uuid)
+    return {
+      id: n.uuid,
+      name: n.name || 'Unnamed',
+      type: n.labels?.find(l => l !== 'Entity') || 'Entity',
+      rawData: n,
+      ...(p ? { x: p.x, y: p.y } : {})
+    }
+  })
+  const _known = nodes.filter(n => n.x != null).length
+  // Hundreds of edge labels are unreadable and costly; start with them off on big graphs (the toggle still works).
+  if (edgesData.length > 300 && lastPositions.size === 0) showEdgeLabels.value = false
   
   const nodeIds = new Set(nodes.map(n => n.id))
   
@@ -483,6 +502,8 @@ const renderGraph = () => {
     // 添加向中心的引力，让独立的节点群聚集到中心区域
     .force('x', d3.forceX(width / 2).strength(0.04))
     .force('y', d3.forceY(height / 2).strength(0.04))
+    .alphaDecay(0.05)
+  if (_known > nodes.length * 0.7) simulation.alpha(0.25)
   
   currentSimulation = simulation
 
@@ -738,40 +759,30 @@ const renderGraph = () => {
     .style('pointer-events', 'none')
     .style('font-family', 'system-ui, sans-serif')
 
-  simulation.on('tick', () => {
-    // 更新曲线路径
+  const _labelNodes = linkLabels.nodes()
+  const _sizes = _labelNodes.map(el => { try { const b = el.getBBox(); return { w: b.width, h: b.height } } catch (e) { return { w: 0, h: 0 } } })
+  let _frame = null
+  const draw = () => {
+    _frame = null
     link.attr('d', d => getLinkPath(d))
-    
-    // 更新边标签位置（无旋转，水平显示更清晰）
-    linkLabels.each(function(d) {
-      const mid = getLinkMidpoint(d)
-      d3.select(this)
-        .attr('x', mid.x)
-        .attr('y', mid.y)
-        .attr('transform', '') // 移除旋转，保持水平
-    })
-    
-    // 更新边标签背景
-    linkLabelBg.each(function(d, i) {
-      const mid = getLinkMidpoint(d)
-      const textEl = linkLabels.nodes()[i]
-      const bbox = textEl.getBBox()
-      d3.select(this)
-        .attr('x', mid.x - bbox.width / 2 - 4)
-        .attr('y', mid.y - bbox.height / 2 - 2)
-        .attr('width', bbox.width + 8)
-        .attr('height', bbox.height + 4)
-        .attr('transform', '') // 移除旋转
-    })
-
-    node
-      .attr('cx', d => d.x)
-      .attr('cy', d => d.y)
-
-    nodeLabels
-      .attr('x', d => d.x)
-      .attr('y', d => d.y)
-  })
+    const labelsOn = showEdgeLabels.value
+    if (labelsOn) {
+      linkLabels.each(function(d) {
+        const mid = getLinkMidpoint(d)
+        this.setAttribute('x', mid.x); this.setAttribute('y', mid.y)
+      })
+      linkLabelBg.each(function(d, i) {
+        const mid = getLinkMidpoint(d), sz = _sizes[i] || { w: 0, h: 0 }
+        this.setAttribute('x', mid.x - sz.w / 2 - 4); this.setAttribute('y', mid.y - sz.h / 2 - 2)
+        this.setAttribute('width', sz.w + 8); this.setAttribute('height', sz.h + 4)
+      })
+    }
+    node.attr('cx', d => d.x).attr('cy', d => d.y)
+    nodeLabels.attr('x', d => d.x).attr('y', d => d.y)
+  }
+  drawRef = draw
+  simulation.on('tick', () => { if (!_frame) _frame = requestAnimationFrame(draw) })
+  simulation.on('end', () => { if (_frame) { cancelAnimationFrame(_frame); _frame = null } draw() })
   
   // 点击空白处关闭详情面板
   svg.on('click', () => {
@@ -785,10 +796,11 @@ const renderGraph = () => {
 
 watch(() => props.graphData, () => {
   nextTick(renderGraph)
-}, { deep: true })
+})
 
 // 监听边标签显示开关
 watch(showEdgeLabels, (newVal) => {
+  if (newVal && drawRef) requestAnimationFrame(drawRef)
   if (linkLabelsRef) {
     linkLabelsRef.style('display', newVal ? 'block' : 'none')
   }
@@ -798,7 +810,7 @@ watch(showEdgeLabels, (newVal) => {
 })
 
 const handleResize = () => {
-  nextTick(renderGraph)
+  nextTick(() => renderGraph(true))
 }
 
 onMounted(() => {
