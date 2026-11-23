@@ -120,6 +120,15 @@ def generate_report():
                     "before generating a report"
                 ),
             }), 409
+        # unbranded fork (red team fix): a FAILED run is reportable only if it banked events.
+        if (
+            run_state.runner_status == RunnerStatus.FAILED
+            and (int(getattr(run_state, "twitter_actions_count", 0) or 0) + int(getattr(run_state, "reddit_actions_count", 0) or 0)) <= 0
+        ):
+            return jsonify({
+                "success": False,
+                "error": "This run failed before recording any agent actions; there is nothing to report on.",
+            }), 409
 
         # 获取项目信息
         project = ProjectManager.get_project(state.project_id)
@@ -211,6 +220,14 @@ def generate_report():
                         "A successfully completed or stopped simulation is "
                         "required before generating a report"
                     ),
+                }), 409
+            if (
+                refreshed_run_state.runner_status == RunnerStatus.FAILED
+                and (int(getattr(refreshed_run_state, "twitter_actions_count", 0) or 0) + int(getattr(refreshed_run_state, "reddit_actions_count", 0) or 0)) <= 0
+            ):
+                return jsonify({
+                    "success": False,
+                    "error": "This run failed before recording any agent actions; there is nothing to report on.",
                 }), 409
 
             # Cached-report reuse is now part of the same atomic barrier, so a

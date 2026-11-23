@@ -55,5 +55,6 @@ cp scripts/labsync.sh /usr/local/bin/labsync.sh && chmod +x /usr/local/bin/labsy
 
 IP=$(curl -s -4 ifconfig.me || hostname -I | awk '{print $1}')
 echo ""
-echo "== done. The lab is at: http://$IP  (user: unbranded, your lab password) =="
+echo "== done. The lab is at: https://lab.unbranded.inc  (user: unbranded, your lab password) =="
+echo "== (needs an A record: lab.unbranded.inc -> $IP, DNS only; plain HTTP redirects there) =="
 echo "== updates deploy themselves within 2 minutes of a push to main =="

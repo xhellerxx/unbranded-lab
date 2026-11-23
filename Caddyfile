@@ -1,6 +1,6 @@
 # The lab's front door. One password for the whole lab (user: unbranded).
-# lab.unbranded.inc gets automatic HTTPS from Caddy once the DNS record exists;
-# the :80 block keeps plain-IP access working in the meantime.
+# Red team fix: credentials only ever travel over HTTPS. The plain-HTTP listener
+# redirects BEFORE authentication or proxying, so nothing sensitive crosses it.
 
 lab.unbranded.inc {
 	basic_auth {
@@ -10,8 +10,5 @@ lab.unbranded.inc {
 }
 
 :80 {
-	basic_auth {
-		{$LAB_USER} {$LAB_HASH}
-	}
-	reverse_proxy mirofish:3000
+	redir https://lab.unbranded.inc{uri} permanent
 }
