@@ -27,7 +27,7 @@ _lock = threading.Lock()
 
 
 def _beat_once():
-    payload = {"service": "mirofish-fork", "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    payload = {"service": "mirofish-fork", "model": os.environ.get("LLM_MODEL_NAME", "gpt-4o-mini")[:80], "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     req = urllib.request.Request(
         HEARTBEAT_URL,
         data=json.dumps(payload).encode("utf-8"),

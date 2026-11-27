@@ -551,107 +551,113 @@ How it works:
 
 # ── 大纲规划 prompt ──
 
+DEBRIEF_SECTIONS = [
+    "What landed, and with whom",
+    "What people pushed back on",
+    "The spread: strongest reactions at both ends",
+    "What to change, and what to test with real people",
+]
+
+DEBRIEF_CAVEAT = (
+    "> **Synthetic responses.** Nobody real was asked. AI-generated people reacted to this idea on a simulated "
+    "social network. Synthetic panels flatten strong views, so the tails matter more than the middle. "
+    "Use this to decide what to change and what to test with real people. It is not a forecast, carries no margin "
+    "of error, and gives no audience numbers or prices.\n\n"
+)
+
 PLAN_SYSTEM_PROMPT = """\
-You are an expert writer of "future forecast reports", with a god's-eye view of a simulated world: you can observe every agent's behavior, statements, and interactions.
+You write development debriefs for an entertainment studio. You can see every simulated person's posts, replies and reactions in a synthetic flight: AI-generated people reacting to an idea on a simulated social network.
 
-[Core idea]
-We built a simulated world and injected a specific "simulation requirement" as the variable. How the simulated world evolves is a forecast of what could happen. You are not looking at "experiment data"; you are watching a rehearsal of the future.
+[What this is]
+These are synthetic responses. Nobody real was asked. The output is a model's guess at how people like these might react. It is a rehearsal that tells the team what to change and what to test with real people. It is not a forecast, a prediction, a measurement or a verdict.
 
-[Your task]
-Write a "future forecast report" that answers:
-1. Under the conditions we set, what happened in the future?
-2. How did each kind of agent (each group) react and act?
-3. What future trends and risks worth attention does this simulation reveal?
+[What the debrief must do]
+Give development guidance a creative team can act on:
+1. What landed, and with whom
+2. What people pushed back on, and why
+3. The spread: the strongest reactions at both ends, not just the average, and any small group that reacted far more intensely than the rest
+4. What to change before production, and what to test with real people next
 
-[Report positioning]
-- YES: a simulation-based forecast report revealing "if this, then what"
-- YES: focused on forecast results: how events unfold, group reactions, emergent effects, latent risks
-- YES: the agents' words and actions in the simulated world are forecasts of future group behavior
-- NO: not an analysis of the present real world
-- NO: not a generic public-opinion survey
+[Hard rules]
+- No go/no-go, no score, no grade, no verdict on whether the idea is good
+- Never state a share, percentage or count of people who would watch, buy, pay, attend or share, and never give a price
+- Never call anything a forecast or a prediction, and never say what "will" happen in the real world
+- Synthetic panels flatten strong views. Look hardest for the intense minority, positive and negative, and never treat a small intense group as noise
+- Describe groups by who they are in the flight, not by how many of them there were
 
-[Section count limits]
-- Minimum 2 sections, maximum 5
-- No subsections; each section is written as one complete piece
-- Keep it tight, focused on the core forecast findings
-- You design the section structure from the forecast results
-
-Output the report outline as JSON, in this format:
+Output the outline as JSON:
 {
-    "title": "Report title",
-    "summary": "Report summary (one sentence capturing the core forecast finding)",
+    "title": "Debrief title (names the idea, not a verdict)",
+    "summary": "One sentence: the single most useful thing to change or test next",
     "sections": [
-        {
-            "title": "Section title",
-            "description": "What the section covers"
-        }
+        {"title": "What landed, and with whom", "description": "..."},
+        {"title": "What people pushed back on", "description": "..."},
+        {"title": "The spread: strongest reactions at both ends", "description": "..."},
+        {"title": "What to change, and what to test with real people", "description": "..."}
     ]
 }
 
-Note: the sections array must have at least 2 and at most 5 elements!"""
+Use exactly these four sections, in this order."""
 
 PLAN_USER_PROMPT_TEMPLATE = """\
-[Forecast scenario]
-The variable we injected into the simulated world (the simulation requirement): {simulation_requirement}
+[The question this flight asked]
+{simulation_requirement}
 
-[Scale of the simulated world]
-- Entities in the simulation: {total_nodes}
-- Relationships formed between entities: {total_edges}
-- Entity type distribution: {entity_types}
-- Active agents: {total_entities}
+[Size of the simulated world]
+- Entities: {total_nodes}
+- Relationships: {total_edges}
+- Entity types: {entity_types}
+- Simulated people active: {total_entities}
 
-[Sample of future facts the simulation produced]
+[A sample of what happened in the flight]
 {related_facts_json}
 
-Review this rehearsal of the future from a god's-eye view:
-1. Under the conditions we set, what state did the future reach?
-2. How did each group (agents) react and act?
-3. What future trends worth attention does this simulation reveal?
-
-Design the most fitting report section structure from the forecast results.
-
-[Reminder] Section count: minimum 2, maximum 5; keep the content tight and focused on the core forecast findings."""
+Plan the debrief. Remember: synthetic responses, development guidance, no verdict, no audience numbers, and look hardest for the strongest reactions at both ends."""
 
 # ── 章节生成 prompt ──
 
 SECTION_SYSTEM_PROMPT_TEMPLATE = """\
-You are an expert writer of "future forecast reports", currently writing one section of the report.
+You write one section of a development debrief for an entertainment studio, from a synthetic flight: AI-generated people reacting to an idea on a simulated social network.
 
 Report title: {report_title}
 Report summary: {report_summary}
-Forecast scenario (simulation requirement): {simulation_requirement}
+The question this flight asked: {simulation_requirement}
 
 Section you are writing now: {section_title}
 
 ===============================================================
-[Core idea]
+[What this is]
 ===============================================================
 
-The simulated world is a rehearsal of the future. We injected specific conditions (the simulation requirement), and the agents' behavior and interactions are forecasts of future group behavior.
+These are synthetic responses. Nobody real was asked. Treat every reaction as a lead to test with real people, never as evidence of what real people think.
 
-Your task:
-- Reveal what happened in the future under the conditions we set
-- Forecast how each group (agents) reacted and acted
-- Surface future trends, risks, and opportunities worth attention
+Your task in this section:
+- Ground every point in what simulated people actually posted and did, and quote them
+- Say which kinds of people reacted, and how strongly
+- Keep the strongest reactions at both ends visible; never smooth them into an average
+- Point to what the team should change or test next
 
-NO: do not write an analysis of the present real world
-YES: focus on "what the future looks like"; the simulation results are the forecast future
+Hard rules:
+- No go/no-go, no score, no verdict on whether the idea is good
+- Never state a share, percentage or count of people who would watch, buy, pay, attend or share, and never give a price
+- Never call anything a forecast or prediction, and never say what "will" happen in the real world
+- If a small group reacted far more intensely than the rest, say so plainly and suggest testing it with real fans
 
 ===============================================================
 [The most important rules - mandatory]
 ===============================================================
 
 1. [You must call tools to observe the simulated world]
-   - You are watching the rehearsal of the future from a god's-eye view
+   - You are reading a synthetic flight; every line is a simulated reaction, not a real one
    - Everything you write must come from events and agent statements inside the simulation
    - You are forbidden from writing report content from your own knowledge
-   - Call tools at least 3 times per section (at most 5) to observe the simulated world; it represents the future
+   - Call tools at least 3 times per section (at most 5) to observe the simulated world
 
 2. [You must quote the agents' original words]
-   - Agent statements and actions are forecasts of future group behavior
-   - Present these forecasts as quotes, for example:
-     > "A certain group would say: original text..."
-   - These quotes are the core evidence of the forecast
+   - Simulated people's words are the material; quote them, and say who in the flight said them
+   - Present them as quotes, for example:
+     > "original text..."
+   - Quotes show what to test with real people; they are not evidence of what real people think
 
 3. [Language consistency - quoted content must be translated into the report language]
    - Tool results may contain text in a different language than the report
@@ -660,8 +666,8 @@ YES: focus on "what the future looks like"; the simulation results are the forec
    - Keep the meaning intact and the phrasing natural
    - This rule applies to body text and quote blocks (> format) alike
 
-4. [Present the forecast faithfully]
-   - The report must reflect the simulation results that represent the future
+4. [Report the flight faithfully]
+   - The debrief must reflect what happened in the flight, including the reactions at both ends
    - Do not add information that does not exist in the simulation
    - If information is thin somewhere, say so plainly
 
@@ -834,10 +840,10 @@ REACT_FORCE_FINAL_MSG = "已达到工具调用限制，请直接输出 Final Ans
 # ── Chat prompt ──
 
 CHAT_SYSTEM_PROMPT_TEMPLATE = """\
-You are a concise, efficient simulation-forecast assistant.
+You answer questions about a development debrief built from synthetic responses (AI-generated people, nobody real was asked). Never present anything as a forecast, never give audience counts, shares or prices, and never give a go/no-go.
 
 [Background]
-Forecast conditions: {simulation_requirement}
+The question the flight asked: {simulation_requirement}
 
 [Generated analysis report]
 {report_content}
@@ -1226,12 +1232,8 @@ class ReportAgent:
                 progress_callback("planning", 80, t('progress.parsingOutline'))
             
             # 解析大纲
-            sections = []
-            for section_data in response.get("sections", []):
-                sections.append(ReportSection(
-                    title=section_data.get("title", ""),
-                    content=""
-                ))
+            # unbranded fork: the debrief is development guidance, always in these four parts.
+            sections = [ReportSection(title=t_, content="") for t_ in DEBRIEF_SECTIONS]
             
             outline = ReportOutline(
                 title=response.get("title", "模拟分析报告"),
@@ -1249,13 +1251,9 @@ class ReportAgent:
             logger.error(t('report.outlinePlanFailed', error=str(e)))
             # 返回默认大纲（3个章节，作为fallback）
             return ReportOutline(
-                title="未来预测报告",
-                summary="基于模拟预测的未来趋势与风险分析",
-                sections=[
-                    ReportSection(title="预测场景与核心发现"),
-                    ReportSection(title="人群行为预测分析"),
-                    ReportSection(title="趋势展望与风险提示")
-                ]
+                title="Flight debrief",
+                summary="Synthetic responses: what to change and what to test with real people.",
+                sections=[ReportSection(title=t_) for t_ in DEBRIEF_SECTIONS]
             )
     
     def _generate_section_react(
@@ -2326,6 +2324,7 @@ class ReportManager:
         
         # 构建报告头部
         md_content = f"# {outline.title}\n\n"
+        md_content += DEBRIEF_CAVEAT
         md_content += f"> {outline.summary}\n\n"
         md_content += f"---\n\n"
         

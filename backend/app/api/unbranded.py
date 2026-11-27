@@ -43,13 +43,26 @@ def _sign(raw: bytes) -> str:
     return hmac.new(_key().encode("utf-8"), raw, hashlib.sha256).hexdigest()
 
 
-def _report(flight_id, step, state, detail="", lab=None):
+def _provenance(c, lab, rounds_run):
+    """What a flight was built with, so The Stack can file it with its record (model, crowd size, rounds)."""
+    from ..config import Config
+    prov = {"model": str(Config.LLM_MODEL_NAME or "")[:80], "memory": "Zep Cloud", "rounds_run": rounds_run,
+            "engine": "MiroFish (AGPL-3.0)"}
+    try:
+        st = (c.get(f"/api/simulation/{lab.get('simulation_id')}").get_json(silent=True) or {}).get("data") or {}
+        prov["agents"] = int(st.get("profiles_count") or st.get("entities_count") or 0)
+    except Exception:  # noqa: BLE001
+        pass
+    return prov
+
+
+def _report(flight_id, step, state, detail="", lab=None, prov=None):
     """Tell The Stack where the flight is. Never raises."""
     if not _key():
         return
     try:
         body = json.dumps({"flight_id": flight_id, "step": step, "state": state, "detail": str(detail)[:600],
-                           "lab": lab or {}, "ts": int(time.time())}).encode("utf-8")
+                           "lab": lab or {}, "prov": prov or {}, "ts": int(time.time())}).encode("utf-8")
         req = urllib.request.Request(STATUS_URL, data=body, method="POST", headers={
             "Content-Type": "application/json", "X-Lab-Signature": _sign(body),
             "User-Agent": "unbranded-lab/1.0 (+https://unbranded.inc)"})
@@ -188,7 +201,8 @@ def _run(app, flight_id, title, question, plan, rounds):
                 if why2 != "ok":
                     raise RuntimeError("The debrief " + ("failed." if why2 == "failed" else "took too long."))
                 lab["report_id"] = lab.get("report_id") or (res.get("result") or {}).get("report_id")
-            _report(flight_id, "landed", "done", "Landed. The debrief is filed in The Stack as a hypothesis.", lab)
+            _report(flight_id, "landed", "done", "Landed. The debrief is filed in The Stack as synthetic responses.", lab,
+                    _provenance(c, lab, max(seen["round"], 0)))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Flight {flight_id} failed: {e}")
         _report(flight_id, "failed", "failed", str(e), lab)
